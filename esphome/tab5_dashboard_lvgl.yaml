@@ -1,0 +1,365 @@
+substitutions:
+  device_name: "tab5_dashboard_lvgl"
+  friendly_name: "Tab5 Dashboard LVGL"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  comment: "M5Stack Tab5 ST7121 dashboard + camera"
+  project:
+    name: "m5stack.tab5_dashboard_lvgl"
+    version: "1.0.0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+logger:
+  level: DEBUG
+
+api:
+ota:
+web_server:
+  port: 80
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "${friendly_name} Fallback"
+    password: "tab5fallback"
+
+captive_portal:
+
+i2c:
+  sda: GPIO8
+  scl: GPIO9
+  scan: true
+
+esp32_camera:
+  external_clock:
+    pin: GPIO1
+    frequency: 20MHz
+  i2c_pins:
+    sda: GPIO40
+    scl: GPIO39
+  data_pins: [GPIO11, GPIO9, GPIO8, GPIO10, GPIO12, GPIO18, GPIO17, GPIO16]
+  vsync_pin: GPIO6
+  href_pin: GPIO7
+  pixel_clock_pin: GPIO13
+  power_down_pin: GPIO14
+  resolution: 640x480
+  jpeg_quality: 10
+  contrast: 0
+  saturation: 0
+  special_effect: NONE
+  wb_mode: AUTO
+  ae_level: 0
+  aec2: "off"
+  awb_gain: "on"
+  agc_gain: 0
+  gainceiling: "2x"
+  bpc: "on"
+  wpc: "on"
+  raw_gma: "on"
+  lenc: "on"
+  hmirror: "off"
+  vflip: "off"
+  dcw: "on"
+  colorbar: "off"
+
+camera:
+  - platform: esp32_camera
+    name: "Tab5 Kamerası"
+    id: tab5_camera
+
+# ST7121 display - MIPI DSI
+# NOTE: Final pin list must match your exact Tab5 revision.
+display:
+  - platform: mipi_dsi
+    id: main_display
+    dimensions:
+      height: 1280
+      width: 720
+    model: M5STACK-TAB5-ST7121
+    reset_pin: GPIO48
+    data_pins:
+      - GPIO47
+      - GPIO21
+      - GPIO0
+      - GPIO46
+      - GPIO3
+      - GPIO8
+      - GPIO4
+      - GPIO5
+    clock_pin: GPIO2
+    color_order: RGB
+    update_interval: 2s
+
+# ST7123 touchscreen
+# For ST7121 devices, community configs use st7123 touch driver.
+touchscreen:
+  - platform: st7123
+    id: main_touchscreen
+    interrupt_pin: GPIO4
+    reset_pin: GPIO42
+    address: 0x70
+    swap_xy: false
+
+# LVGL UI
+lvgl:
+  timeout: 30s
+  bg_color: black
+  disp_bg_color: black
+  theme:
+    obj:
+      bg_color: black
+      text_color: white
+      border_color: "#1f1f1f"
+  screens:
+    - screen:
+        id: dashboard_screen
+        widgets:
+          - label:
+              id: title_label
+              x: 40
+              y: 40
+              width: 300
+              height: 60
+              text: "Tab5 Dashboard"
+              text_font: roboto_28
+              text_color: white
+              align: left_mid
+
+          - label:
+              id: temp_label
+              x: 40
+              y: 140
+              width: 250
+              height: 80
+              text: "Sıcaklık"
+              text_font: roboto_22
+              text_color: white
+
+          - label:
+              id: temp_value
+              x: 40
+              y: 210
+              width: 250
+              height: 90
+              text: "22.5°C"
+              text_font: roboto_40
+              text_color: "#00A8FF"
+
+          - label:
+              id: humidity_label
+              x: 360
+              y: 140
+              width: 250
+              height: 80
+              text: "Nem"
+              text_font: roboto_22
+              text_color: white
+
+          - label:
+              id: humidity_value
+              x: 360
+              y: 210
+              width: 250
+              height: 90
+              text: "48%"
+              text_font: roboto_40
+              text_color: "#00A8FF"
+
+          - button:
+              id: lamp_button
+              x: 40
+              y: 360
+              width: 250
+              height: 120
+              text: "Lamba"
+              text_font: roboto_24
+              click:
+                then:
+                  - switch.toggle: relay_1
+
+          - button:
+              id: fan_button
+              x: 360
+              y: 360
+              width: 250
+              height: 120
+              text: "Fan"
+              text_font: roboto_24
+              click:
+                then:
+                  - switch.toggle: relay_2
+
+          - label:
+              id: wifi_label
+              x: 40
+              y: 560
+              width: 250
+              height: 80
+              text: "WiFi"
+              text_font: roboto_22
+              text_color: white
+
+          - label:
+              id: wifi_value
+              x: 40
+              y: 620
+              width: 250
+              height: 80
+              text: "-65 dBm"
+              text_font: roboto_32
+              text_color: "#00FF88"
+
+          - label:
+              id: status_label
+              x: 360
+              y: 560
+              width: 250
+              height: 80
+              text: "Durum"
+              text_font: roboto_22
+              text_color: white
+
+          - label:
+              id: status_value
+              x: 360
+              y: 620
+              width: 250
+              height: 80
+              text: "Online"
+              text_font: roboto_32
+              text_color: "#00FF88"
+
+          - button:
+              id: camera_button
+              x: 220
+              y: 760
+              width: 260
+              height: 100
+              text: "Kamera"
+              text_font: roboto_24
+              click:
+                then:
+                  - lvgl.widget.show: camera_screen
+                  - lvgl.widget.hide: dashboard_screen
+
+    - screen:
+        id: camera_screen
+        widgets:
+          - label:
+              id: camera_title
+              x: 40
+              y: 30
+              width: 300
+              height: 60
+              text: "Kamera"
+              text_font: roboto_28
+              text_color: white
+
+          - label:
+              id: camera_state
+              x: 40
+              y: 110
+              width: 300
+              height: 60
+              text: "Canlı görüntü"
+              text_font: roboto_22
+              text_color: "#00A8FF"
+
+          - button:
+              id: back_to_dashboard
+              x: 220
+              y: 860
+              width: 260
+              height: 100
+              text: "Dashboard"
+              text_font: roboto_24
+              click:
+                then:
+                  - lvgl.widget.show: dashboard_screen
+                  - lvgl.widget.hide: camera_screen
+
+font:
+  - file: "gfonts://Roboto"
+    id: roboto_22
+    size: 22
+  - file: "gfonts://Roboto"
+    id: roboto_24
+    size: 24
+  - file: "gfonts://Roboto"
+    id: roboto_28
+    size: 28
+  - file: "gfonts://Roboto"
+    id: roboto_32
+    size: 32
+  - file: "gfonts://Roboto"
+    id: roboto_40
+    size: 40
+
+switch:
+  - platform: gpio
+    name: "Lamba 1"
+    id: relay_1
+    pin:
+      number: GPIO37
+      inverted: false
+    restore_mode: ALWAYS_OFF
+
+  - platform: gpio
+    name: "Fan 1"
+    id: relay_2
+    pin:
+      number: GPIO38
+      inverted: false
+    restore_mode: ALWAYS_OFF
+
+button:
+  - platform: restart
+    name: "Yeniden Başlat"
+
+binary_sensor:
+  - platform: status
+    name: "Cihaz Durumu"
+
+sensor:
+  - platform: wifi_signal
+    id: wifi_signal
+    name: "WiFi Sinyal Gücü"
+    update_interval: 30s
+
+  - platform: dht
+    pin: GPIO41
+    model: AM2302
+    temperature:
+      id: room_temp
+      name: "Oda Sıcaklığı"
+      unit_of_measurement: "°C"
+      accuracy_decimals: 1
+    humidity:
+      id: room_humidity
+      name: "Oda Nem Oranı"
+      unit_of_measurement: "%"
+      accuracy_decimals: 0
+    update_interval: 30s
+
+text_sensor:
+  - platform: version
+    name: "ESPHome Sürümü"
+
+interval:
+  - interval: 5s
+    then:
+      - lambda: |-
+          auto temp = id(room_temp).state;
+          auto hum = id(room_humidity).state;
+          auto sig = id(wifi_signal).state;
+
+          lvgl_label_set_text(id(temp_value), (String(temp, 1) + "°C").c_str());
+          lvgl_label_set_text(id(humidity_value), (String(hum, 0) + "%").c_str());
+          lvgl_label_set_text(id(wifi_value), (String(sig, 0) + " dBm").c_str());

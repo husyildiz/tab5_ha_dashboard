@@ -1,230 +1,157 @@
-# M5Stack Tab5 Home Assistant Dashboard
+# M5Stack Tab5 Home Assistant Dashboard + Kamera
 
-ESPHome tabanlı, Home Assistant ile entegre çalışan M5Stack Tab5 dashboard örneği.
+ESPHome tabanlı, Home Assistant ile entegre çalışan M5Stack Tab5 dashboard. **Kamera desteği** ile canlı video akışı sağlar.
 
-## İçerik
+## Özellikler
 
-- `tab5_dashboard.yaml`: ESPHome yapılandırması
-- `secrets.yaml`: WiFi bilgileri
-- `lovelace_tab5_dashboard.yaml`: Home Assistant Lovelace örneği
+- **Dashboard Sekmesi:**
+  - Sıcaklık ve nem sensörleri
+  - Lamba ve fan kontrolleri
+  - WiFi sinyal gücü
+  - Cihaz durumu
 
-## Not
+- **Kamera Sekmesi:**
+  - 640x480 çözünürlükte canlı kamerası
+  - Tab5 ekranında kamera bilgisi
+  - Home Assistant'ta canlı video akışı
 
-ST7121 ekranın doğrudan ESPHome sürücüsü kartın gerçek modeline göre değişebilir. `display` bölümünde `model` ve pinler gerçek devre şemasına göre ayarlanmalıdır.
+- **Çok Sayfalı Arayüz:**
+  - Fiziksel butonlarla sekme değiştirme
+  - Responsive dashboard kartları
+  - Renkli durum göstergeleri
 
-## Hızlı Başlangıç
+## Kurulum
 
-1. `tab5_dashboard.yaml` dosyasını ESPHome cihazına yükleyin.
-2. `secrets.yaml` içindeki WiFi bilgilerini doldurun.
-3. Home Assistant'a cihazı ekleyin.
-4. Lovelace'e örnek dashboard kartlarını ekleyin.
+### 1. ESPHome Dosyalarını Hazırla
 
-## Kodlar
-
-### `tab5_dashboard.yaml`
-
-```yaml
-substitutions:
-  device_name: "tab5_dashboard"
-  friendly_name: "Tab5 Dashboard"
-
-esphome:
-  name: ${device_name}
-  friendly_name: ${friendly_name}
-  comment: "M5Stack Tab5 Home Assistant dashboard"
-  project:
-    name: "m5stack.tab5_dashboard"
-    version: "1.0.0"
-
-esp32:
-  board: esp32dev
-  framework:
-    type: arduino
-
-logger:
-  level: DEBUG
-
-api:
-ota:
-web_server:
-  port: 80
-
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-  ap:
-    ssid: "${friendly_name} Fallback"
-    password: "tab5fallback"
-
-captive_portal:
-
-i2c:
-  sda: GPIO21
-  scl: GPIO22
-  scan: true
-
-switch:
-  - platform: gpio
-    name: "Lamba 1"
-    id: relay_1
-    pin:
-      number: GPIO27
-      inverted: false
-    restore_mode: ALWAYS_OFF
-
-  - platform: gpio
-    name: "Fan 1"
-    id: relay_2
-    pin:
-      number: GPIO26
-      inverted: false
-    restore_mode: ALWAYS_OFF
-
-button:
-  - platform: restart
-    name: "Yeniden Başlat"
-
-binary_sensor:
-  - platform: status
-    name: "Cihaz Durumu"
-
-sensor:
-  - platform: wifi_signal
-    id: wifi_signal
-    name: "WiFi Sinyal Gücü"
-    update_interval: 30s
-
-  - platform: dht
-    pin: GPIO4
-    model: AM2302
-    temperature:
-      id: room_temp
-      name: "Oda Sıcaklığı"
-      unit_of_measurement: "°C"
-      accuracy_decimals: 1
-    humidity:
-      id: room_humidity
-      name: "Oda Nem Oranı"
-      unit_of_measurement: "%"
-      accuracy_decimals: 0
-    update_interval: 30s
-
-text_sensor:
-  - platform: version
-    name: "ESPHome Sürümü"
-
-font:
-  - file: "gfonts://Roboto"
-    id: font_small
-    size: 18
-  - file: "gfonts://Roboto"
-    id: font_medium
-    size: 26
-  - file: "gfonts://Roboto"
-    id: font_big
-    size: 34
-
-color:
-  - id: bg_color
-    hex: "000000"
-  - id: panel_color
-    hex: "1F1F1F"
-  - id: accent_color
-    hex: "00A8FF"
-  - id: good_color
-    hex: "00FF88"
-  - id: warn_color
-    hex: "FFB000"
-  - id: text_color
-    hex: "FFFFFF"
-
-display:
-  - platform: ili9xxx
-    model: ST7789V
-    cs_pin: GPIO5
-    dc_pin: GPIO15
-    reset_pin: GPIO33
-    rotation: 90
-    update_interval: 2s
-    lambda: |-
-      auto width = it.get_width();
-      auto height = it.get_height();
-
-      it.filled_rectangle(0, 0, width, height, id(bg_color));
-
-      it.filled_rectangle(0, 0, width, 40, id(accent_color));
-      it.print(10, 8, id(font_small), id(text_color), "TAB5 DASHBOARD");
-      it.printf(200, 8, id(font_small), id(text_color), "%.0f dBm", id(wifi_signal).state);
-
-      it.filled_rectangle(10, 55, 130, 100, id(panel_color));
-      it.print(20, 65, id(font_small), id(text_color), "SICAKLIK");
-      it.printf(20, 95, id(font_big), id(text_color), "%.1fC", room_temp.state);
-
-      it.filled_rectangle(150, 55, 130, 100, id(panel_color));
-      it.print(165, 65, id(font_small), id(text_color), "NEM");
-      it.printf(165, 95, id(font_big), id(text_color), "%.0f%%", room_humidity.state);
-
-      it.filled_rectangle(10, 170, 130, 100, id(panel_color));
-      it.print(22, 180, id(font_small), id(text_color), "LAMBA");
-      if (id(relay_1).state) {
-        it.print(20, 210, id(font_medium), id(good_color), "AÇIK");
-      } else {
-        it.print(20, 210, id(font_medium), id(warn_color), "KAPALI");
-      }
-
-      it.filled_rectangle(150, 170, 130, 100, id(panel_color));
-      it.print(170, 180, id(font_small), id(text_color), "FAN");
-      if (id(relay_2).state) {
-        it.print(170, 210, id(font_medium), id(good_color), "AÇIK");
-      } else {
-        it.print(170, 210, id(font_medium), id(warn_color), "KAPALI");
-      }
-
-      it.filled_rectangle(0, height - 28, width, 28, id(panel_color));
-      it.print(10, height - 21, id(font_small), id(text_color), "HA: ONLINE");
+```bash
+cd esphome/
+cp secrets.example.yaml secrets.yaml
+# secrets.yaml dosyasını düzenle
 ```
 
-### `secrets.yaml`
+### 2. Secrets Dosyasını Doldur
 
 ```yaml
 wifi_ssid: "WIFI_ADINIZ"
 wifi_password: "WIFI_ŞİFRENİZ"
 ```
 
-### `lovelace_tab5_dashboard.yaml`
+### 3. ESPHome'a Yükle
 
-```yaml
-type: grid
-columns: 2
-square: false
-cards:
-  - type: sensor
-    entity: sensor.oda_sicakligi
-    name: Oda Sıcaklığı
-    graph: line
-
-  - type: sensor
-    entity: sensor.oda_nem_orani
-    name: Oda Nem Oranı
-    graph: line
-
-  - type: switch
-    entity: switch.lamba_1
-    name: Lamba 1
-
-  - type: switch
-    entity: switch.fan_1
-    name: Fan 1
-
-  - type: sensor
-    entity: sensor.wifi_sinyal_gucu
-    name: WiFi Gücü
-
-  - type: binary_sensor
-    entity: binary_sensor.cihaz_durumu
-    name: Cihaz Durumu
+```bash
+esphome run tab5_dashboard.yaml
 ```
 
-## Sonraki adım
+### 4. Home Assistant'ta Ekle
 
-Bir sonraki mesajda bunu bir GitHub repo halinde düzenleyip, dosyaları net şekilde ekleyebiliriz. Ayrıca sana `README.md` ve `platformio.ini` gibi ek dosyaları da ekleyebilirim.
+- Home Assistant → Ayarlar → Cihazlar ve Hizmetler → ESPHome
+- Cihazı bul ve ekle
+
+### 5. Lovelace Dashboard'ı Kuruluma Ekle
+
+```yaml
+# configuration.yaml
+lovelace:
+  mode: yaml
+```
+
+`lovelace_tab5_dashboard.yaml` dosyasını Home Assistant `config` dizininde kullan veya UI üzerinden manuel olarak kartları ekle.
+
+## Dosya Yapısı
+
+```
+tab5_ha_dashboard/
+├── esphome/
+│   ├── tab5_dashboard.yaml       # Ana ESPHome konfigürasyonu
+│   ├── secrets.yaml              # WiFi bilgileri (gitignore'da)
+│   └── button_control.yaml       # Fiziksel buton konfigürasyonu
+├── homeassistant/
+│   └── lovelace_tab5_dashboard.yaml # HA Dashboard ve kamera kartları
+├── README.md                     # Bu dosya
+└── .gitignore
+```
+
+## Kamera Özellikleri
+
+- **Çözünürlük:** 640x480
+- **JPEG Kalitesi:** 10 (yüksek kalite)
+- **FPS:** ~30 fps
+- **Beyaz Balans:** Otomatik
+- **Maruz Kalma:** Otomatik
+- **Ayna/Çevirme:** Kapalı
+
+## Fiziksel Butonlar
+
+- **Sol Buton (GPIO35):** Önceki sekmesiye git
+- **Orta Buton (GPIO37):** Lambaları aç/kapat
+- **Sağ Buton (GPIO39):** Sonraki sekmeye git
+
+## Pin Eşlemesi
+
+| Bileşen | GPIO | Açıklama |
+|---------|------|----------|
+| Ekran CS | GPIO5 | SPI Chip Select |
+| Ekran DC | GPIO15 | Data/Command |
+| Ekran Reset | GPIO33 | Display Reset |
+| Kamera VSYNC | GPIO33 | Görüntü Sync |
+| Kamera HREF | GPIO36 | Satır Sync |
+| Kamera Clock | GPIO32 | Pixel Clock |
+| DHT Sensör | GPIO4 | Sıcaklık/Nem |
+| Relay 1 | GPIO27 | Lamba Kontrolü |
+| Relay 2 | GPIO26 | Fan Kontrolü |
+| Sol Buton | GPIO35 | Sayfa Öncesi |
+| Orta Buton | GPIO37 | Relay Toggle |
+| Sağ Buton | GPIO39 | Sayfa Sonrası |
+
+## Home Assistant Entitileri
+
+### Sensörler
+- `sensor.oda_sicakligi` - Oda sıcaklığı (°C)
+- `sensor.oda_nem_orani` - Oda nem oranı (%)
+- `sensor.wifi_sinyal_gucu` - WiFi sinyal gücü (dBm)
+
+### Anahtar
+- `switch.lamba_1` - Lamba kontrolü
+- `switch.fan_1` - Fan kontrolü
+
+### Kamera
+- `camera.tab5_kamerasi` - Canlı kamera akışı
+
+### İkili Sensörler
+- `binary_sensor.tab5_dashboard_cihaz_durumu` - Cihaz online/offline
+
+## Sorun Giderme
+
+### Kamera Görüntüsü Görünmüyor
+- Kamera pinlerini kontrol et
+- Power supply yeterli mi kontrol et
+- Serial monitor'da hata mesajlarını kontrol et
+
+### Sekme Değiştirme Çalışmıyor
+- Buton pinlerini kontrol et
+- `button_control.yaml` eklentisini yükle
+- Serial debug çıkışını kontrol et
+
+### WiFi Bağlantısı Başarısız
+- Şifresi ve SSID'si doğru mu kontrol et
+- WiFi sinyali yeterli mi kontrol et
+
+### Dashboard Kartları Görünmüyor
+- Home Assistant'ta cihazı ekle
+- Lovelace dashboard'ını yenile
+- Browser cache'ini temizle
+
+## Notlar
+
+- ST7121 ekran sürücüsü kartın gerçek modeline göre değişebilir. `display:` bölümündeki `model` ve pinler gerçek devre şemasına göre ayarlanmalıdır.
+- Kamera I2C pinleri varsayılan olarak GPIO26 (SDA) ve GPIO27 (SCL)'dir. Başka sensörler kullanıyorsan pin çatışmalarını kontrol et.
+- Fiziksel buton GPIO pinleri Tab5 kartınıza göre değişebilir.
+
+## Lisans
+
+GPL-3.0
+
+## Katkı
+
+Bug raporları ve öneriler için issue açabilirsiniz.

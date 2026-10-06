@@ -1,312 +1,77 @@
-# M5Stack Tab5 Home Assistant Dashboard + Kamera (ST7121)
+# M5Stack Tab5 Home Assistant Dashboard + Kamera (ST7121 + LVGL)
 
-Bu proje, M5Stack Tab5 cihazı için ESPHome tabanlı ve Home Assistant ile entegre çalışan bir arayüzdür. ST7121 ekran ve ST7123 dokunmatik kontrol birimi kullanır.
+Bu proje, M5Stack Tab5 cihazı için ESPHome tabanlı, Home Assistant ile entegre çalışan ve ST7121 ekran kullanan bir arayüzdür. Ana hedef, cihazın kendi ekranında bir kontrol paneli göstermek ve aynı anda Home Assistant üzerinde canlı kamera akışı sunmaktır.
 
 ## Özellikler
 
-- Dashboard sekmesi:
-  - Oda sıcaklığı
-  - Oda nem oranı
-  - Lamba kontrolü
-  - Fan kontrolü
-  - WiFi sinyal gücü
-  - Cihaz durumu
+- ST7121 ekran desteği (MIPI DSI tabanlı)
+- ST7123 dokunmatik destek
+- Home Assistant ile entegrasyon
+- Canlı kamera akışı
+- Dashboard + Kamera sekmeleri
+- Oda sıcaklığı, nem, WiFi sinyali ve cihaz durumu
+- Lamba ve fan kontrolü
+- LVGL tabanlı modern arayüz
 
-- Kamera sekmesi:
-  - Canlı kamera akışı
-  - Home Assistant'ta canlı video görünümü
-  - Tab5 ekranında ayrı kamera bilgisi
+## Kullanılan Temel Yapı
 
-- Ekran yönetimi:
-  - ST7121 MIPI DSI ekran
-  - ST7123 dokunmatik kontrol
-  - Sekme değiştirme
+- Ekran: ST7121
+- Dokunmatik: ST7123
+- Çözünürlük: 1280x720 (MIPI DSI)
+- Kamera: ESPHome `esp32_camera`
+- Arayüz: LVGL
+- Yönetim: Home Assistant + ESPHome
 
 ## Dizin Yapısı
 
 ```text
 .
 ├── esphome/
-│   ├── tab5_dashboard.yaml
-│   ├── secrets.yaml
-│   └── button_control.yaml
+│   ├── tab5_dashboard_lvgl.yaml
+│   └── secrets.yaml
 ├── homeassistant/
 │   └── lovelace_tab5_dashboard.yaml
 ├── README.md
-└── .gitignore
+├── .gitignore
+└── LICENSE
 ```
 
-## Ana ESPHome Dosyası (`esphome/tab5_dashboard.yaml`)
+## Gereksinimler
 
-```yaml
-substitutions:
-  device_name: "tab5_dashboard"
-  friendly_name: "Tab5 Dashboard"
+- M5Stack Tab5 cihazı
+- ESPHome kurulumu
+- Home Assistant kurulumu
+- WiFi erişimi
+- USB / serial bağlantı
+- Home Assistant üzerinde ESPHome eklentisi
 
-esphome:
-  name: ${device_name}
-  friendly_name: ${friendly_name}
-  comment: "M5Stack Tab5 Home Assistant dashboard with ST7121 display"
-  project:
-    name: "m5stack.tab5_dashboard"
-    version: "4.0.0"
+## Hazırlık
 
-esp32:
-  board: esp32-s3-devkitc-1
-  framework:
-    type: arduino
+### 1) Repo'yu klonlayın
 
-logger:
-  level: DEBUG
-
-api:
-  encryption:
-    key: !secret api_key
-
-ota:
-  password: !secret ota_password
-
-web_server:
-  port: 80
-
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-  ap:
-    ssid: "${friendly_name} Fallback"
-    password: "tab5fallback"
-
-captive_portal:
-
-i2c:
-  sda: GPIO8
-  scl: GPIO9
-  scan: true
-
-# ---------------------------------------------------
-# Kamera
-# ---------------------------------------------------
-esp32_camera:
-  external_clock:
-    pin: GPIO1
-    frequency: 20MHz
-  i2c_pins:
-    sda: GPIO40
-    scl: GPIO39
-  data_pins: [GPIO11, GPIO9, GPIO8, GPIO10, GPIO12, GPIO18, GPIO17, GPIO16]
-  vsync_pin: GPIO6
-  href_pin: GPIO7
-  pixel_clock_pin: GPIO13
-  power_down_pin: GPIO14
-  resolution: 640x480
-  jpeg_quality: 10
-  contrast: 0
-  saturation: 0
-  special_effect: NONE
-  wb_mode: AUTO
-  ae_level: 0
-  aec2: "off"
-  awb_gain: "on"
-  agc_gain: 0
-  gainceiling: "2x"
-  bpc: "on"
-  wpc: "on"
-  raw_gma: "on"
-  lenc: "on"
-  hmirror: "off"
-  vflip: "off"
-  dcw: "on"
-  colorbar: "off"
-
-camera:
-  - platform: esp32_camera
-    name: "Tab5 Kamerası"
-    id: tab5_camera
-
-# ---------------------------------------------------
-# ST7121 Display - MIPI DSI
-# ---------------------------------------------------
-display:
-  - platform: mipi_dsi
-    id: main_display
-    dimensions:
-      height: 1280
-      width: 720
-    model: M5STACK-TAB5-ST7121
-    reset_pin: GPIO48
-    data_pins:
-      - GPIO47
-      - GPIO21
-      - GPIO0
-      - GPIO46
-      - GPIO3
-      - GPIO8
-      - GPIO4
-      - GPIO5
-    clock_pin: GPIO2
-    color_order: RGB
-    update_interval: 2s
-    lambda: |-
-      auto width = it.get_width();
-      auto height = it.get_height();
-
-      it.filled_rectangle(0, 0, width, height, Color::BLACK);
-
-      it.filled_rectangle(0, 0, width / 2, 80, id(current_page) == 0 ? Color(0, 168, 255) : Color(102, 102, 102));
-      it.filled_rectangle(width / 2, 0, width / 2, 80, id(current_page) == 1 ? Color(0, 168, 255) : Color(102, 102, 102));
-
-      it.print(50, 25, id(font_medium), Color::WHITE, "Dashboard");
-      it.print(width / 2 + 50, 25, id(font_medium), Color::WHITE, "Kamera");
-
-      if (id(current_page) == 0) {
-        it.printf(width - 200, 100, id(font_small), Color::WHITE, "WiFi: %.0f dBm", id(wifi_signal).state);
-
-        it.filled_rectangle(30, 150, 300, 200, Color(31, 31, 31));
-        it.print(50, 170, id(font_medium), Color::WHITE, "SICAKLIK");
-        it.printf(50, 250, id(font_big), Color::WHITE, "%.1fC", room_temp.state);
-
-        it.filled_rectangle(width - 330, 150, 300, 200, Color(31, 31, 31));
-        it.print(width - 310, 170, id(font_medium), Color::WHITE, "NEM");
-        it.printf(width - 310, 250, id(font_big), Color::WHITE, "%.0f%%", room_humidity.state);
-
-        it.filled_rectangle(30, 380, 300, 200, Color(31, 31, 31));
-        it.print(50, 400, id(font_medium), Color::WHITE, "LAMBA");
-        if (id(relay_1).state) {
-          it.print(50, 480, id(font_big), Color(0, 255, 136), "AÇIK");
-        } else {
-          it.print(50, 480, id(font_big), Color(255, 176, 0), "KAPALI");
-        }
-
-        it.filled_rectangle(width - 330, 380, 300, 200, Color(31, 31, 31));
-        it.print(width - 310, 400, id(font_medium), Color::WHITE, "FAN");
-        if (id(relay_2).state) {
-          it.print(width - 310, 480, id(font_big), Color(0, 255, 136), "AÇIK");
-        } else {
-          it.print(width - 310, 480, id(font_big), Color(255, 176, 0), "KAPALI");
-        }
-
-        it.filled_rectangle(0, height - 60, width, 60, Color(31, 31, 31));
-        it.print(30, height - 40, id(font_small), Color::WHITE, "HA: ONLINE");
-      }
-
-      if (id(current_page) == 1) {
-        it.filled_rectangle(30, 100, width - 60, 80, Color(31, 31, 31));
-        it.print(50, 120, id(font_medium), Color::WHITE, "Kamera: Aktif");
-
-        it.filled_rectangle(30, 200, width - 60, 80, Color(31, 31, 31));
-        it.print(50, 220, id(font_medium), Color::WHITE, "Çözünürlük: 640x480");
-
-        it.filled_rectangle(30, 300, width - 60, 80, Color(31, 31, 31));
-        it.print(50, 320, id(font_medium), Color::WHITE, "Kalite: Yüksek");
-
-        it.filled_rectangle(30, 400, width - 60, 80, Color(31, 31, 31));
-        it.print(50, 420, id(font_small), Color(0, 255, 136), "HA'da canlı görünümü açın");
-
-        it.filled_rectangle(0, height - 60, width, 60, Color(31, 31, 31));
-        it.print(30, height - 40, id(font_small), Color::WHITE, "Kamera: ONLINE");
-      }
-
-# ---------------------------------------------------
-# Touchscreen - ST7123 (ST7121 ile uyumlu)
-# ---------------------------------------------------
-touchscreen:
-  - platform: st7123
-    id: main_touchscreen
-    interrupt_pin: GPIO4
-    reset_pin: GPIO42
-    address: 0x70
-    swap_xy: false
-    on_touch:
-      then:
-        - lambda: |-
-            if (touch.x > it.get_width() / 2) {
-              if (id(current_page) < 1) {
-                id(current_page) += 1;
-              }
-            } else {
-              if (id(current_page) > 0) {
-                id(current_page) -= 1;
-              }
-            }
-
-# ---------------------------------------------------
-# Fontlar
-# ---------------------------------------------------
-font:
-  - file: "gfonts://Roboto"
-    id: font_small
-    size: 24
-  - file: "gfonts://Roboto"
-    id: font_medium
-    size: 32
-  - file: "gfonts://Roboto"
-    id: font_big
-    size: 48
-
-# ---------------------------------------------------
-# Relay / Switch
-# ---------------------------------------------------
-switch:
-  - platform: gpio
-    name: "Lamba 1"
-    id: relay_1
-    pin:
-      number: GPIO37
-      inverted: false
-    restore_mode: ALWAYS_OFF
-
-  - platform: gpio
-    name: "Fan 1"
-    id: relay_2
-    pin:
-      number: GPIO38
-      inverted: false
-    restore_mode: ALWAYS_OFF
-
-button:
-  - platform: restart
-    name: "Yeniden Başlat"
-
-binary_sensor:
-  - platform: status
-    name: "Cihaz Durumu"
-
-sensor:
-  - platform: wifi_signal
-    id: wifi_signal
-    name: "WiFi Sinyal Gücü"
-    update_interval: 30s
-
-  - platform: dht
-    pin: GPIO41
-    model: AM2302
-    temperature:
-      id: room_temp
-      name: "Oda Sıcaklığı"
-      unit_of_measurement: "°C"
-      accuracy_decimals: 1
-    humidity:
-      id: room_humidity
-      name: "Oda Nem Oranı"
-      unit_of_measurement: "%"
-      accuracy_decimals: 0
-    update_interval: 30s
-
-text_sensor:
-  - platform: version
-    name: "ESPHome Sürümü"
-
-# ---------------------------------------------------
-# Sayfa yönetimi
-# ---------------------------------------------------
-globals:
-  - id: current_page
-    type: int
-    restore_value: no
-    initial_value: '0'
+```bash
+git clone https://github.com/husyildiz/tab5_ha_dashboard.git
+cd tab5_ha_dashboard
 ```
 
-## Secrets dosyası (`esphome/secrets.yaml`)
+### 2) ESPHome dosyasını inceleyin
+
+Ana ESPHome yapılandırması şu dosyadadır:
+
+```text
+esphome/tab5_dashboard_lvgl.yaml
+```
+
+Bu dosyada:
+- ekran modeli `M5STACK-TAB5-ST7121`
+- dokunmatik `st7123`
+- kamera ve WiFi ayarları
+- dashboard ve kamera ekranları
+bulunur.
+
+### 3) WiFi bilgilerini girin
+
+`esphome/secrets.yaml` dosyasını oluşturun veya düzenleyin:
 
 ```yaml
 wifi_ssid: "WIFI_ADINIZ"
@@ -315,79 +80,113 @@ api_key: "API_ANAHTARINIZ"
 ota_password: "OTA_ŞİFRENİZ"
 ```
 
-## Home Assistant Lovelace (`homeassistant/lovelace_tab5_dashboard.yaml`)
+Not: `api_key` ve `ota_password` boş bırakmayın. ESPHome için gerekli olabilir.
 
-```yaml
-title: Tab5 Dashboard (ST7121)
-path: tab5-dashboard
+## ESPHome ile Yükleme
 
-views:
-  - title: Ana Dashboard
-    path: dashboard
-    icon: mdi:home
-    cards:
-      - type: entities
-        title: "Sıcaklık ve Nem"
-        entities:
-          - entity: sensor.tab5_dashboard_oda_sicakligi
-            name: Oda Sıcaklığı
-          - entity: sensor.tab5_dashboard_oda_nem_orani
-            name: Oda Nem Oranı
+### 1) ESPHome Add-on'u kurun
 
-      - type: entities
-        title: "Ağ Durumu"
-        entities:
-          - entity: sensor.tab5_dashboard_wifi_sinyal_gucu
-            name: WiFi Sinyali
-          - entity: binary_sensor.tab5_dashboard_cihaz_durumu
-            name: Cihaz Durumu
+Home Assistant içinde:
+- Ayarlar
+- Eklentiler
+- ESPHome
+- Kurulum
 
-      - type: switch
-        entity: switch.tab5_dashboard_lamba_1
-        name: Lamba 1
+### 2) Cihazı ekleyin
 
-      - type: switch
-        entity: switch.tab5_dashboard_fan_1
-        name: Fan 1
+- ESPHome tarafında "Yeni cihaz" oluşturun
+- ESPHome cihazınıza gerekli serial bağlantıyı kurun
+- `esphome/tab5_dashboard_lvgl.yaml` dosyasını yükleyin
 
-      - type: sensor
-        entity: sensor.tab5_dashboard_esphome_surumu
-        name: ESPHome Sürümü
-
-  - title: Kamera
-    path: camera
-    icon: mdi:camera
-    cards:
-      - type: picture-entity
-        entity: camera.tab5_dashboard_tab5_kamerasi
-        name: "Tab5 Canlı Kamerası"
-        show_state: true
-        show_name: true
-
-      - type: markdown
-        title: "Kamera Bilgisi"
-        content: |
-          # Tab5 ST7121 Kamerası
-          
-          - **Çözünürlük:** 640x480 px
-          - **Format:** JPEG
-          - **Kalite:** 10
-          - **Dokunmatik:** ST7123
-          - **Ekran:** ST7121 MIPI DSI
-```
-
-## Son Notlar
-
-- Bu yapı, ST7121 ekranı için MIPI DSI yaklaşımına uygun şekilde hazırlanmıştır.
-- ST7123 dokunmatik modülünün ST7121 ile aynı protokolü kullandığı bilinmektedir.
-- Ekran modelini ve GPIO pinlerini gerçek kart şemasına göre doğrulamak gerekir.
-- `esp32_camera` ve `display` pinleri kitin kendi PCB tasarımına göre değişebilir.
-
-## Çalıştırma
+### 3) Derleyip yükleyin
 
 ```bash
 cd esphome
-esphome run tab5_dashboard.yaml
+esphome run tab5_dashboard_lvgl.yaml
 ```
 
-Bu proje, M5Stack Tab5 cihazınızda ST7121 ekran + ST7123 touch + canlı kamera + Home Assistant entegrasyonu için uygun temel yapıdır.
+Alternatif olarak Home Assistant içindeki ESPHome arayüzünden "Compile" ve "Upload" işlemlerini yapabilirsiniz.
+
+## Home Assistant Dashboard Kurulumu
+
+`homeassistant/lovelace_tab5_dashboard.yaml` dosyasındaki kartları kullanın.
+
+Bu dosya, aşağıdaki iki sekme içerir:
+- Ana Dashboard
+- Kamera
+
+### Lovelace yükleme adımları
+
+1. Home Assistant içinde sol menüden "Görünüm (Dashboard)" seçin
+2. Sağ üstte üç noktaya tıklayıp "Dashboard'ı düzenle"
+3. "YAML düzeni" aktif edin
+4. Dosyadaki içeriği kopyalayıp yapıştırın
+
+Veya `configuration.yaml` içinde `lovelace:` bloklarını ya da ayrı dashboard dosyasını kullanabilirsiniz.
+
+## Çalışan UI Mantığı
+
+### Dashboard ekranı
+- Oda sıcaklığı
+- Oda nem oranı
+- WiFi sinyal gücü
+- Lamba durumu
+- Fan durumu
+- Cihaz durumu
+
+### Kamera ekranı
+- Canlı kamera görünümü
+- Kamera bilgisi ve ekran durumu
+
+## ST7121 ve ST7123 Notu
+
+Bu cihaz için ekran ve dokunmatik bilgileri, üretici kartına göre değişebilir. Bu nedenle aşağıdakiler mutlaka kontrol edilmelidir:
+
+- gerçek ekran controller modeli
+- SPI / MIPI DSI pinleri
+- dokunmatik entegre chipi
+- pin eşlemeleri
+
+Bu proje, Axellum'un M5 Tab5 ESPHome LVGL örneğine yakın bir yapı kurar ve ST7121/ST7123 uyumlu şekilde düşünülmüştür. Fakat gerçek kart revision'ına göre küçük pin veya model farklılıkları ortaya çıkabilir.
+
+## Sorun Giderme
+
+### 1) Ekran görünmüyor
+- `display` bloğundaki model ve pinleri kontrol edin
+- ST7121 için `mipi_dsi` yaklaşımı doğru mu kontrol edin
+- reset ve clock pinlerini doğrulayın
+
+### 2) Dokunmatik çalışmıyor
+- `touchscreen` blokunda `st7123` kullanımını doğrulayın
+- interrupt ve reset pinlerini kontrol edin
+- I2C bus bağlantısını kontrol edin
+
+### 3) Kamera yok
+- `esp32_camera` pinlerini doğrulayın
+- I2C pinleri doğru mu kontrol edin
+- `camera.tab5_kamerasi` entity'sini Home Assistant'ta arayın
+
+### 4) WiFi bağlanmıyor
+- `secrets.yaml` dosyasındaki SSID ve şifre doğru olmalı
+- cihazın WiFi sinyali yeterli olmalı
+- ESPHome loglarını kontrol edin
+
+## Gelişmiş Notlar
+
+- Bu proje, referans olarak ST7121 + ST7123 + MIPI DSI + LVGL yaklaşımını kullanır.
+- Gerçek cihaz üzerinde test sırasında küçük ayarlamalar gerekebilir.
+- Eğer farklı Tab5 revision'ı kullanıyorsanız, ekran modelini ve GPIO pin eşlemelerini doğrulamanız gerekir.
+
+## Lisans
+
+GPL-3.0
+
+## Katkıda Bulunma
+
+- Kodları düzenleyebilirsiniz
+- Hata raporları açabilirsiniz
+- Yeni widgetler veya menüler ekleyebilirsiniz
+
+## Son Söz
+
+Bu proje, M5Stack Tab5 cihazında ST7121 ekran kullanımına uygun modern bir ESPHome dashboard örneğidir. Ekran, touch, kamera ve Home Assistant entegrasyonu birlikte düşünülerek hazırlanmıştır.

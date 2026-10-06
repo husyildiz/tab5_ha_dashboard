@@ -1,0 +1,81 @@
+title: Tab5 Dashboard (ST7121)
+path: tab5-dashboard
+
+views:
+  - title: Ana Dashboard
+    path: dashboard
+    icon: mdi:home
+    cards:
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: entities
+            title: "Sıcaklık ve Nem"
+            entities:
+              - entity: sensor.tab5_dashboard_oda_sicakligi
+                name: Oda Sıcaklığı
+              - entity: sensor.tab5_dashboard_oda_nem_orani
+                name: Oda Nem Oranı
+
+          - type: entities
+            title: "Ağ Durumu"
+            entities:
+              - entity: sensor.tab5_dashboard_wifi_sinyal_gucu
+                name: WiFi Sinyali
+              - entity: binary_sensor.tab5_dashboard_cihaz_durumu
+                name: Cihaz Durumu
+
+          - type: switch
+            entity: switch.tab5_dashboard_lamba_1
+            name: Lamba 1
+
+          - type: switch
+            entity: switch.tab5_dashboard_fan_1
+            name: Fan 1
+
+          - type: sensor
+            entity: sensor.tab5_dashboard_esphome_surumu
+            name: ESPHome Sürümü
+
+  - title: Kamera
+    path: camera
+    icon: mdi:camera
+    cards:
+      - type: picture-entity
+        entity: camera.tab5_dashboard_tab5_kamerasi
+        name: "Tab5 Canlı Kamerası"
+        show_state: true
+        show_name: true
+
+      - type: markdown
+        title: "Kamera Bilgisi"
+        content: |
+          # Tab5 ST7121 Kamerası
+          
+          ## Özellikler
+          - **Çözünürlük:** 640x480 px
+          - **Format:** JPEG
+          - **Kalite:** 10 (maksimum)
+          - **FPS:** ~30 fps
+          - **Beyaz Balans:** Otomatik
+          - **Maruz Kalma:** Otomatik
+          
+          ## Ekran Durumu
+          - Ekran: MIPI DSI (ST7121)
+          - Dokunmatik: ST7123
+          - Çözünürlük: 1280x720 px
+          
+          ## Ekran Sekmeleri
+          1. **Dashboard:** Sıcaklık, nem, lamba, fan
+          2. **Kamera:** Kamera bilgisi ve durumu
+          
+          **Not:** Ekranı dokunmatik seçeneklerle kontrol edebilirsiniz.
+
+      - type: entities
+        title: "Kamera Kontrolleri"
+        entities:
+          - entity: camera.tab5_dashboard_tab5_kamerasi
+            name: "Kamera Durumu"
+          - entity: binary_sensor.tab5_dashboard_cihaz_durumu
+            name: "Cihaz Bağlantısı"
